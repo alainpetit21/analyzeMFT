@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 # This is all Willi Ballenthin's. Saved me a lot of headaches
 
 

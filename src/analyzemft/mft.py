@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 # Author: David Kovar [dkovar <at> gmail [dot] com]
 # Name: mft.py
 #
@@ -15,8 +13,8 @@ import ctypes
 import struct
 from optparse import OptionParser
 
-from analyzemft import bitparse
-from analyzemft import mftutils
+import bitparse
+import mftutils
 
 
 def parse_record(raw_record, options):
@@ -47,13 +45,13 @@ def parse_record(raw_record, options):
 
     if record['magic'] == 0x44414142:
         if options.debug:
-            print("BAAD MFT Record")
+            print("BAAD MFT.raw Record")
         record['baad'] = True
         return record
 
     if record['magic'] != 0x454c4946:
         if options.debug:
-            print("Corrupt MFT Record")
+            print("Corrupt MFT.raw Record")
         record['corrupt'] = True
         return record
 
@@ -223,7 +221,7 @@ def parse_record(raw_record, options):
 
 
 def mft_to_csv(record, ret_header, options):
-    """Return a MFT record in CSV format"""
+    """Return a MFT.raw record in CSV format"""
 
     if ret_header:
         # Write headers
@@ -246,14 +244,14 @@ def mft_to_csv(record, ret_header, options):
         return csv_string
 
     if 'baad' in record:
-        csv_string = ["%s" % record['recordnum'], "BAAD MFT Record"]
+        csv_string = ["%s" % record['recordnum'], "BAAD MFT.raw Record"]
         return csv_string
 
     csv_string = [record['recordnum'], decode_mft_magic(record), decode_mft_isactive(record),
                   decode_mft_recordtype(record)]
 
     if 'corrupt' in record:
-        tmp_string = ["%s" % record['recordnum'], "Corrupt", "Corrupt", "Corrupt MFT Record"]
+        tmp_string = ["%s" % record['recordnum'], "Corrupt", "Corrupt", "Corrupt MFT.raw Record"]
         csv_string.extend(tmp_string)
         return csv_string
 
@@ -405,7 +403,7 @@ def mft_to_json(record):
     return json_object
 
 def mft_to_body(record, full, std):
-    """ Return a MFT record in bodyfile format"""
+    """ Return a MFT.raw record in bodyfile format"""
 
     # Add option to use STD_INFO
 
@@ -453,7 +451,7 @@ def mft_to_body(record, full, std):
 # http://code.google.com/p/log2timeline/wiki/l2t_csv
 
 def mft_to_l2t(record):
-    """ Return a MFT record in l2t CSV output format"""
+    """ Return a MFT.raw record in l2t CSV output format"""
 
     csv_string = ''
     if record['fncnt'] > 0:
@@ -476,7 +474,7 @@ def mft_to_l2t(record):
                 macb_str = '...B'
 
             csv_string = ("%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n" % (
-                date, time, 'TZ', macb_str, 'FILE', 'NTFS $MFT', type_str, 'user', 'host',
+                date, time, 'TZ', macb_str, 'FILE', 'NTFS $MFT.raw', type_str, 'user', 'host',
                 record['filename'],
                 'desc',
                 'version', record['filename'], record['seq'], record['notes'], 'format', 'extra'))
@@ -501,14 +499,14 @@ def mft_to_l2t(record):
                 macb_str = '...B'
 
             csv_string = ("%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n" % (
-                date, time, 'TZ', macb_str, 'FILE', 'NTFS $MFT', type_str, 'user', 'host',
+                date, time, 'TZ', macb_str, 'FILE', 'NTFS $MFT.raw', type_str, 'user', 'host',
                 record['filename'],
                 'desc',
                 'version', record['filename'], record['seq'], record['notes'], 'format', 'extra'))
 
     else:
         csv_string = ("%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n" % (
-            '-', '-', 'TZ', 'unknown time', 'FILE', 'NTFS $MFT', 'unknown time', 'user', 'host',
+            '-', '-', 'TZ', 'unknown time', 'FILE', 'NTFS $MFT.raw', 'unknown time', 'user', 'host',
             'Corrupt Record', 'desc',
             'version', 'NoFNRecord', record['seq'], '-', 'format', 'extra'))
 
@@ -537,7 +535,7 @@ def decode_mft_header(record, raw_record):
     record['base_seq'] = struct.unpack("<H", raw_record[38:40])[0]
     record['next_attrid'] = struct.unpack("<H", raw_record[40:42])[0]
     record['f1'] = raw_record[42:44]  # Padding
-    record['recordnum'] = struct.unpack("<I", raw_record[44:48])[0]  # Number of this MFT Record
+    record['recordnum'] = struct.unpack("<I", raw_record[44:48])[0]  # Number of this MFT.raw Record
     record['seq_number'] = raw_record[48:50]  # Sequence number
     # Sequence attributes location are hardcoded since the record size is hardcoded too.
     # The following two lines are subject to NTFS versions. See:
@@ -563,7 +561,7 @@ def decode_mft_magic(record):
         return 'Unknown'
 
 
-# decodeMFTisactive and decodeMFTrecordtype both look at the flags field in the MFT header.
+# decodeMFTisactive and decodeMFTrecordtype both look at the flags field in the MFT.raw header.
 # The first bit indicates if the record is active or inactive. The second bit indicates if it
 # is a file or a folder.
 #

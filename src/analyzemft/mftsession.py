@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 # Author: David Kovar [dkovar <at> gmail [dot] com]
 # Name: mftsession.py
 #
@@ -8,24 +6,22 @@
 #
 # Date: May 2013
 #
-
-VERSION = "v3.0.1"
-
 import csv
 import json
 import os
 import sys
 from optparse import OptionParser
 
-from analyzemft import mft
+import mft
 
+VERSION = "v3.0.1"
 
 SIAttributeSizeXP = 72
 SIAttributeSizeNT = 48
 
 
 class MftSession:
-    """Class to describe an entire MFT processing session"""
+    """Class to describe an entire MFT.raw processing session"""
 
     @staticmethod
     def fmt_excel(date_str):
@@ -35,7 +31,6 @@ class MftSession:
     def fmt_norm(date_str):
         return date_str
 
-
     def __init__(self):
         self.mft = {}
         self.fullmft = {}
@@ -43,66 +38,27 @@ class MftSession:
         self.debug = False
         self.mftsize = 0
 
-    def mft_options(self):
+    def mft_options(self, argToPass= None):
 
         parser = OptionParser()
         parser.set_defaults(inmemory=False, debug=False, UseLocalTimezone=False, UseGUI=False)
+        parser.add_option("-v", "--version", action="store_true", dest="version", help="report version and exit")
+        parser.add_option("-f", "--file", dest="filename", help="read MFT.raw from FILE", metavar="FILE")
+        parser.add_option("-j", "--json", dest="json", help="File paths should use the windows path separator instead of linux")
+        parser.add_option("-o", "--output", dest="output", help="write results to FILE", metavar="FILE")
+        parser.add_option("-a", "--anomaly", action="store_true", dest="anomaly", help="turn on anomaly detection")
+        parser.add_option("-e", "--excel", action="store_true", dest="excel", help="print date/time in Excel friendly format")
+        parser.add_option("-b", "--bodyfile", dest="bodyfile", help="write MAC information to bodyfile", metavar="FILE")
+        parser.add_option("--bodystd", action="store_true", dest="bodystd", help="Use STD_INFO timestamps for body file rather than FN timestamps")
+        parser.add_option("--bodyfull", action="store_true", dest="bodyfull", help="Use full path name + filename rather than just filename")
+        parser.add_option("-c", "--csvtimefile", dest="csvtimefile", help="write CSV format timeline file", metavar="FILE")
+        parser.add_option("-l", "--localtz", action="store_true", dest="localtz", help="report times using local timezone")
+        parser.add_option("-d", "--debug", action="store_true", dest="debug", help="turn on debugging output")
+        parser.add_option("-s", "--saveinmemory", action="store_true", dest="inmemory", help="Save a copy of the decoded MFT.raw in memory. Do not use for very large MFTs")
+        parser.add_option("-p", "--progress", action="store_true", dest="progress", help="Show systematic progress reports.")
+        parser.add_option("-w", "--windows-path", action="store_true", dest="winpath", help="File paths should use the windows path separator instead of linux")
 
-        parser.add_option("-v", "--version", action="store_true", dest="version",
-                          help="report version and exit")
-
-        parser.add_option("-f", "--file", dest="filename",
-                          help="read MFT from FILE", metavar="FILE")
-
-        parser.add_option("-j", "--json",
-                          dest="json",
-                          help="File paths should use the windows path separator instead of linux")        
-        
-        parser.add_option("-o", "--output", dest="output",
-                          help="write results to FILE", metavar="FILE")
-
-        parser.add_option("-a", "--anomaly",
-                          action="store_true", dest="anomaly",
-                          help="turn on anomaly detection")
-
-        parser.add_option("-e", "--excel",
-                          action="store_true", dest="excel",
-                          help="print date/time in Excel friendly format")
-
-        parser.add_option("-b", "--bodyfile", dest="bodyfile",
-                          help="write MAC information to bodyfile", metavar="FILE")
-
-        parser.add_option("--bodystd", action="store_true", dest="bodystd",
-                          help="Use STD_INFO timestamps for body file rather than FN timestamps")
-
-        parser.add_option("--bodyfull", action="store_true", dest="bodyfull",
-                          help="Use full path name + filename rather than just filename")
-
-        parser.add_option("-c", "--csvtimefile", dest="csvtimefile",
-                          help="write CSV format timeline file", metavar="FILE")
-
-        parser.add_option("-l", "--localtz",
-                          action="store_true", dest="localtz",
-                          help="report times using local timezone")
-
-        parser.add_option("-d", "--debug",
-                          action="store_true", dest="debug",
-                          help="turn on debugging output")
-
-        parser.add_option("-s", "--saveinmemory",
-                          action="store_true", dest="inmemory",
-                          help="Save a copy of the decoded MFT in memory. Do not use for very large MFTs")
-
-        parser.add_option("-p", "--progress",
-                          action="store_true", dest="progress",
-                          help="Show systematic progress reports.")
-
-        parser.add_option("-w", "--windows-path",
-                          action="store_true", dest="winpath",
-                          help="File paths should use the windows path separator instead of linux")
-        
-        
-        (self.options, args) = parser.parse_args()
+        (self.options, args) = parser.parse_args(argToPass)
 
         self.path_sep = '\\' if self.options.winpath else '/'
 
@@ -112,8 +68,7 @@ class MftSession:
             self.options.date_formatter = MftSession.fmt_norm
 
     def open_files(self):
-       
-            
+
         if self.options.version:
             print(("Version is: %s" % VERSION))
             sys.exit()
@@ -138,7 +93,7 @@ class MftSession:
             except (IOError, TypeError):
                 print("Unable to open file: %s" % self.options.output)
                 sys.exit()
-        
+
         if self.options.bodyfile is not None:
             try:
                 self.file_body = open(self.options.bodyfile, 'w')
@@ -153,20 +108,20 @@ class MftSession:
                 print("Unable to open file: %s" % self.options.csvtimefile)
                 sys.exit()
 
-    # Provides a very rudimentary check to see if it's possible to store the entire MFT in memory
+    # Provides a very rudimentary check to see if it's possible to store the entire MFT.raw in memory
     # Not foolproof by any means, but could stop you from wasting time on a doomed to failure run.
     def sizecheck(self):
 
-        # The number of records in the MFT is the size of the MFT / 1024
+        # The number of records in the MFT.raw is the size of the MFT.raw / 1024
         self.mftsize = int(os.path.getsize(self.options.filename)) / 1024
 
         if self.options.debug:
-            print('There are %d records in the MFT' % self.mftsize)
+            print('There are %d records in the MFT.raw' % self.mftsize)
 
         if not self.options.inmemory:
             return
 
-        # The size of the full MFT is approximately the number of records * the avg record size
+        # The size of the full MFT.raw is approximately the number of records * the avg record size
         # Avg record size was determined empirically using some test data
         sizeinbytes = self.mftsize * 4500
 
@@ -179,7 +134,7 @@ class MftSession:
                 arr.append(1)
 
         except MemoryError:
-            print('Error: Not enough memory to store MFT in memory. Try running again without -s option')
+            print('Error: Not enough memory to store MFT.raw in memory. Try running again without -s option')
             sys.exit()
 
     def process_mft_file(self):
@@ -217,23 +172,18 @@ class MftSession:
             raw_record = self.file_mft.read(1024)
 
     def do_output(self, record):
-        
-        
+
         if self.options.inmemory:
             self.fullmft[self.num_records] = record
 
         if self.options.output is not None:
             self.file_csv.writerow(mft.mft_to_csv(record, False, self.options))
-        
-        if self.options.json is not None:    
+
+        if self.options.json is not None:
             with open(self.options.json, 'a') as outfile:
                 json.dump(mft.mft_to_json(record), outfile)
                 outfile.write('\n')
-            
-        
- 
-    
-            
+
         if self.options.csvtimefile is not None:
             self.file_csv_time.write(mft.mft_to_l2t(record))
 
@@ -242,7 +192,7 @@ class MftSession:
 
         if self.options.progress:
             if self.num_records % (self.mftsize / 5) == 0 and self.num_records > 0:
-                print('Building MFT: {0:.0f}'.format(100.0 * self.num_records / self.mftsize) + '%')
+                print('Building MFT.raw: {0:.0f}'.format(100.0 * self.num_records / self.mftsize) + '%')
 
     def plaso_process_mft_file(self):
 

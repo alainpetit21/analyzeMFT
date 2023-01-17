@@ -12,7 +12,7 @@ import os
 import sys
 from optparse import OptionParser
 
-import mft
+import analyzemft.mft as mft
 
 VERSION = "v3.0.1"
 

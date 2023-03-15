@@ -4,8 +4,8 @@ import os
 
 
 if __name__ == "__main__":
-    strFileMFT = "./data/mftLM12381579.raw"
-    strFileProcessed = "./data/mftLM12381579.raw.out.csv"
+    strFileMFT = "./data/mft.raw"
+    strFileProcessed = "./data/mft.raw.out.csv"
 
     if not os.path.exists(strFileProcessed):
         session = mftsession.MftSession()
